@@ -1,0 +1,79 @@
+name: docker-compose-actions-workflow
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'c*'
+
+jobs:
+  test:
+    runs-on: windows-latest
+    env:
+      targetZip: ${{ github.event.repository.name }}-${{ github.ref_name }}-arm-compiler-for-embedded-6.19.zip
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ github.repository }}
+          path: ${{ github.repository }}
+          
+          
+      - uses: actions/checkout@v3
+        with:
+          repository: dirkarnez/internal-keil-mdk-portable
+          path: internal-keil-mdk-portable
+          token: ${{ secrets.GH_PAT }}
+          ref: main
+          
+      - shell: cmd
+        run: |
+          cd .\internal-keil-mdk-portable\v5.38a &&^
+          7z.exe x Keil_v5.38a.zip.001 &&^
+          dir
+          
+      - name: curl PortableGit-2.38.1-64-bit.7z.exe
+        shell: cmd
+        run: |
+          curl https://github.com/git-for-windows/git/releases/download/v2.38.1.windows.1/PortableGit-2.38.1-64-bit.7z.exe -L -O &&^
+          7z.exe x PortableGit-2.38.1-64-bit.7z.exe -o"PortableGit-2.38.1-64-bit"
+          
+      - name: curl keil-mdk-portable-v5.38a.zip
+        shell: cmd
+        run: |
+          curl https://github.com/dirkarnez/internal-keil-mdk-portable/releases/download/v5.38a/keil-mdk-portable-v5.38a.zip -L -O &&^
+          7z.exe x keil-mdk-portable-v5.38a.zip -o"internal-keil-mdk-portable\v5.38a"
+
+      - name: download dependencies
+        shell: cmd
+        run: |
+          set CURRENT_DIRECTORY=%CD%
+          curl https://www.keil.com/pack/Keil.STM32F1xx_DFP.2.4.0.pack -L -O &&^
+          7z x Keil.STM32F1xx_DFP.2.4.0.pack -o"%CURRENT_DIRECTORY%\internal-keil-mdk-portable\v5.38a\ARM\PACK\Keil\STM32F1xx_DFP\2.4.0" -y &&^
+          curl https://www.keil.com/pack/ARM.CMSIS.5.9.0.pack -L -O &&^
+          7z x ARM.CMSIS.5.9.0.pack -o"%CURRENT_DIRECTORY%\internal-keil-mdk-portable\v5.38a\ARM\PACK\ARM\CMSIS\5.9.0" -y
+          
+      - name: set PATH, check mingw version, cmake generate, build and install
+        shell: cmd
+        run: |
+          set CURRENT_DIRECTORY=%CD%
+          cd ${{ github.repository }} && "%CURRENT_DIRECTORY%\internal-keil-mdk-portable\v5.38a\UV4.Portable.exe" --project=EIE3105_Lab5.uvprojx &&^
+          dir
+
+      - shell: cmd
+        run: |
+          set CURRENT_DIRECTORY=%CD%
+          cd ${{ github.repository }} && dir /s && cd Objects && "%CURRENT_DIRECTORY%\internal-keil-mdk-portable\v5.38a\ARM\ARMCLANG\bin\armclang.exe" --version > ARMCLANG_VERSION.txt
+          
+      - name: Archive Release
+        uses: thedoctor0/zip-release@master
+        with:
+          type: 'zip'
+          directory: "${{ github.repository }}/Objects"
+          filename: "${{ env.targetZip }}"
+        
+      - name: Release prebuilt
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ github.repository }}/Objects/${{ env.targetZip }}"
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -13,3 +13,6 @@ EIE3105_Lab5
 - https://www.keil.com/pack/Keil.MDK-Middleware_Graphics.1.3.0.pack
 - https://www.keil.com/pack/ARM.CMSIS-NN.4.1.0.pack
 - https://www.keil.com/pack/ARM.CMSIS-DSP.1.15.0.pack
+
+
+<!-- Security scan triggered at 2026-09-15 09:42:51 -->
